@@ -1,23 +1,17 @@
-import logo from './logo.svg';
 import './App.css';
+import { useState } from 'react';
 
 function App() {
+  const [pressed,setPressed] = useState()
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <div className='mt-24'>To Do!</div>
+      <div className='flex mt-3 '>
+        <input className='text-sm p-2 border-2 border-gray-400 rounded-xl  ' placeholder='Add item...'></input>
+        <button className='ml-3 bg-gray-200 p-2 rounded-xl' onSubmit={setPressed()}> Submit</button>
+      
+      </div>
     </div>
   );
 }
