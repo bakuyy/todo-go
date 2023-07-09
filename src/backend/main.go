@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http" //imports
 	"os"
-
 	"github.com/gorilla/mux"
 	"honnef.co/go/tools/go/loader"
 )
@@ -37,6 +36,8 @@ func HandleTasks(w http.ResponseWriter, r *http.Request){ // responsible for han
 
 }
 
+
+
 func getTasks(w http.ResponseWriter) {
 	err := loadTasksFromJSON(&db) // load tasks from json database; 
 	if err != nil {
@@ -47,6 +48,21 @@ func getTasks(w http.ResponseWriter) {
 	w.Header().Set("Content-Type","application/json") // set response header to specify that response will be in json format, header = "content-type", value = "applicaiton/json" these r standard
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(db.Tasks) // encodes db.Tasks into json format and writes it to the repsonse body, this ensures tasks are sent back to client as json response
+}
+
+func addTasks(w http.ResponseWriter, r http.Request) {
+	var newTask Task 
+	err := json.NewDecoder(r.Body).Decode(&newTask) // regcodes body json data into newTask variable, then performs decoding
+	// json.NewDecorder(r.Body) creates new json.Decoder
+	// Decode(&newTask) decodes json data from r.Body (reuqest body)
+	// error handling: decode method returns an error  (occurs if json data doenst match structure of newTask var)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w,"Error found the request %s", err.Error())
+		return
+	}
+
+
 }
 
 
