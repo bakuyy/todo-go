@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http" //imports
 	"os"
-	"github.com/gorilla/mux"
-	"honnef.co/go/tools/go/loader"
 )
 
 type Task struct { // type is used to define a custom type, Task is name, struct is keyword used to def a strucuted data type that can hold multiple fields
@@ -22,16 +21,18 @@ type Database struct { // another custom type, named Database,
 } // in the case above, it specifies that the field should be labled as tasks with enc or decoding the struct to JSON. 
 
 
-func HandleTasks(w http.ResponseWriter, r *http.Request){ // responsible for handling incoming HTTP tasks
+func handleTasks(w http.ResponseWriter, r http.Request){ // responsible for handling incoming HTTP tasks
 	// w represents responsewriter for writing the response, r represents http.reqest which woul,d contian incoming req details
-	if r.Method == http.MethodGet {
-		
-	} else if r.Method == http.MethodPost {
-
-	} else if r.Method == http.MethodDelete{
-
-	} else {
-		fmt.Println("Method not allowed")
+	switch r.Method {
+	case http.MethodGet:
+		getTasks(w)
+	case http.MethodPost:
+		addTasks(w, r)
+	case http.MethodDelete:
+		deleteTask(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprint(w, "Method not allowed")
 	}
 
 }
@@ -82,6 +83,47 @@ func addTasks(w http.ResponseWriter, r http.Request) {
 
 }
 
+func deleteTask(w http.ResponseWriter, r http.Request) {
+	taskID := r.URL.Query().Get("id") 
+	// R.url represents the URL of the incoming request
+	//Query() retrives query parameters from URL
+	// get("id") retrieves value of query parameter, and this value is assigned to "taskID"
+	if taskID =="" { // checks to see if the ID is empty
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Task ID required")
+		return
+	}
+
+	err := loadTasksFromJSON(&db)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w,"Unable to load in request")
+	}
+
+	updatedTasks :=[]Task{}
+
+	for _, task := range db.Tasks{
+		if task.ID != taskID {
+			updatedTasks = append(updatedTasks, task)
+		}
+	}
+
+	db.Tasks = updatedTasks
+
+	err = saveTasksToJSON(db)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "Unable to save task error: %s", err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w,"Deleted!")
+
+
+}
+
 
 // when declaring a var, u can specify its name followed by the type of variable
 var db Database // creating a variable with the features/characteristics as our Database struct
@@ -116,12 +158,11 @@ func loadTasksFromJSON(db *Database) error{
 }
 
 func main(){
-	// http.HandleFunc("/hello-world", func(w http.ResponseWriter, r *http.Request){
-	// 	w.Write([]byte("hello world!"))
-	// })
-	// http.ListenAndServe(":8080",nil)
-
-	loadTasksFromJSON(&db)
+    http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
+        handleTasks(w, *r)
+    })
+    fmt.Println("Server started on http://localhost:8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func saveTasksToJSON( db Database) error {
