@@ -59,9 +59,26 @@ func addTasks(w http.ResponseWriter, r http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w,"Error found the request %s", err.Error())
-		return
+		return // displays error if needed
 	}
 
+	errs := loadTasksFromJSON(&db) // laods tasks frmo json database into db variable, then returns loaded tasks
+
+	if errs != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w,"Error loading tasks %s", errs.Error())
+	}
+	
+	db.Tasks = append(db.Tasks,newTask) //adds new task to existing list
+
+	err = saveTasksToJSON(db)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error saving tasks %s", err.Error())
+		return
+	}
+	w. WriteHeader(http.StatusCreated)
+	fmt.Fprint(w,"Task added!")
 
 }
 
@@ -105,4 +122,16 @@ func main(){
 	// http.ListenAndServe(":8080",nil)
 
 	loadTasksFromJSON(&db)
+}
+
+func saveTasksToJSON( db Database) error {
+	data, err := json.MarshalIndent(db,""," ")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile("database.json", data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
