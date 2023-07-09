@@ -114,7 +114,7 @@ func deleteTask(w http.ResponseWriter, r http.Request) {
 	err = saveTasksToJSON(db)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Unable to save task error: %s", err.Error())
+		fmt.Fprintf(w, "Unable to save task error: %s", err.Error())
 		return
 	}
 
