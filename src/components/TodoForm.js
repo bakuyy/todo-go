@@ -13,7 +13,7 @@ function TodoForm() {
 
     const HandleSubmitButton = async ()=> {
       try {
-        await axios.post('http://localhost:8080/tasks',{Text})
+        await axios.post('http://localhost:8080/tasks',{ task })
         setText('')
       } catch (error) {
         console.log("error adding task", error)

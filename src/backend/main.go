@@ -13,7 +13,7 @@ import (
 
 type Task struct { // type is used to define a custom type, Task is name, struct is keyword used to def a strucuted data type that can hold multiple fields
 	ID        string `json:"id"` // created three fields within a Task - ID, Task, Completed
-	Task      string `json:"task"`
+	Task      string `json:"tasks"`
 	Completed string `json:"completed"`
 }
 
