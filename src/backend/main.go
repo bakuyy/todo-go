@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http" //imports
 	"os"
+	// "github.com/rs/cors"
+	// "github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 )
 
 type Task struct { // type is used to define a custom type, Task is name, struct is keyword used to def a strucuted data type that can hold multiple fields
@@ -21,84 +23,80 @@ type Database struct { // another custom type, named Database,
 } // in the case above, it specifies that the field should be labled as tasks with enc or decoding the struct to JSON. 
 
 
-func handleTasks(w http.ResponseWriter, r http.Request){ // responsible for handling incoming HTTP tasks
-	// w represents responsewriter for writing the response, r represents http.reqest which woul,d contian incoming req details
-	switch r.Method {
+func handleTasks(c *gin.Context) {
+	switch c.Request.Method {
 	case http.MethodGet:
-		getTasks(w)
+		getTasks(c)
 	case http.MethodPost:
-		addTasks(w, r)
+		addTasks(c)
 	case http.MethodDelete:
-		deleteTask(w, r)
+		deleteTask(c)
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(w, "Method not allowed")
+		c.AbortWithStatusJSON(http.StatusMethodNotAllowed, gin.H{"error": "Method not allowed"})
 	}
-
 }
 
 
 
-func getTasks(w http.ResponseWriter) {
+
+func getTasks(c *gin.Context) {
 	err := loadTasksFromJSON(&db) // load tasks from json database; 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError) //if error occurs, handles error by setting resopnse status code to the 500 internal server error
-		fmt.Fprintf(w, "Error loading tasks: %s", err.Error()) // lets client know abt error, uses FPRINTF
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	w.Header().Set("Content-Type","application/json") // set response header to specify that response will be in json format, header = "content-type", value = "applicaiton/json" these r standard
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(db.Tasks) // encodes db.Tasks into json format and writes it to the repsonse body, this ensures tasks are sent back to client as json response
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, db.Tasks)
 }
 
-func addTasks(w http.ResponseWriter, r http.Request) {
+func addTasks(c *gin.Context){
 	var newTask Task 
-	err := json.NewDecoder(r.Body).Decode(&newTask) // regcodes body json data into newTask variable, then performs decoding
+	err := c.BindJSON(&newTask) 
+	
 	// json.NewDecorder(r.Body) creates new json.Decoder
 	// Decode(&newTask) decodes json data from r.Body (reuqest body)
 	// error handling: decode method returns an error  (occurs if json data doenst match structure of newTask var)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w,"Error found the request %s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
 		return // displays error if needed
 	}
+	fmt.Println( newTask)
 
 	errs := loadTasksFromJSON(&db) // laods tasks frmo json database into db variable, then returns loaded tasks
 
 	if errs != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w,"Error loading tasks %s", errs.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	
-	db.Tasks = append(db.Tasks,newTask) //adds new task to existing list
+	db.Tasks = append(db.Tasks, newTask) //adds new task to existing list
 
 	err = saveTasksToJSON(db)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error saving tasks %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
 		return
 	}
-	w. WriteHeader(http.StatusCreated)
-	fmt.Fprint(w,"Task added!")
+	c.JSON(http.StatusCreated, gin.H{"message": "Task added successfully"})
+
 
 }
 
-func deleteTask(w http.ResponseWriter, r http.Request) {
-	taskID := r.URL.Query().Get("id") 
+func deleteTask(c *gin.Context) {
+	taskID := c.Query("id")
 	// R.url represents the URL of the incoming request
 	//Query() retrives query parameters from URL
 	// get("id") retrieves value of query parameter, and this value is assigned to "taskID"
 	if taskID =="" { // checks to see if the ID is empty
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Task ID required")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Task ID is required"})		
 		return
 	}
 
 	err := loadTasksFromJSON(&db)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w,"Unable to load in request")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
 	updatedTasks :=[]Task{}
@@ -113,13 +111,11 @@ func deleteTask(w http.ResponseWriter, r http.Request) {
 
 	err = saveTasksToJSON(db)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Unable to save task error: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w,"Deleted!")
+	c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
 
 
 }
@@ -158,11 +154,32 @@ func loadTasksFromJSON(db *Database) error{
 }
 
 func main(){
-    http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
-        handleTasks(w, *r)
-    })
-    fmt.Println("Server started on http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
+	router := gin.Default()
+	router.GET("/tasks", getTasks)
+	router.Use(CORSMiddleware())
+
+	router.POST("/tasks", addTasks)
+	router.DELETE("/tasks", deleteTask)
+	
+	// Run the server
+	router.Run(":8080")
+}
+
+func CORSMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+
+        c.Header("Access-Control-Allow-Origin", "*")
+        c.Header("Access-Control-Allow-Credentials", "true")
+        c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+        c.Header("Access-Control-Allow-Methods", "POST,HEAD,PATCH, OPTIONS, GET, PUT")
+
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(204)
+            return
+        }
+
+        c.Next()
+    }
 }
 
 func saveTasksToJSON( db Database) error {

@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState } from 'react'
+import axios from 'axios'
 
 function TodoForm() {
     const [Text, setText] = useState('')
@@ -10,10 +11,14 @@ function TodoForm() {
         setText(newVal)
     }
 
-    const HandleSubmitButton = ()=> {
-        setStoredText(Text)
-        console.log(Text)
+    const HandleSubmitButton = async ()=> {
+      try {
+        await axios.post('http://localhost:8080/tasks',{Text})
         setText('')
+      } catch (error) {
+        console.log("error adding task", error)
+      }
+
     }
 
   return (
